@@ -1,0 +1,16 @@
+.venv/
+.auth/
+__pycache__/
+data/cache/
+data/prepared/
+data/custom/
+data/cache/
+**/*.private.json
+infrastructure/clusters/
+infrastructure/comparisons/
+cloud/results/
+cloud/staged/
+results/
+reports/
+*.pem
+*.log

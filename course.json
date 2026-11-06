@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "region": "us-east-1",
+  "instance_type": "t8i.small",
+  "instance_type_note": "Confirmed by instructor: T8i small, 2 vCPU / 2 GiB per node",
+  "workers": [
+    4,
+    8,
+    16
+  ],
+  "repetitions": 3,
+  "disk_gib": 100,
+  "ebs_iops": 3000,
+  "ebs_throughput_mib_s": 125,
+  "cpu_credits": "unlimited",
+  "timeout_seconds": 14400,
+  "dataset": {
+    "name": "wikipedia-en-10gb-v1",
+    "target_bytes": 10000000000,
+    "directory": "data/prepared",
+    "s3_uri": "s3://10605-f26-testing/mapreduce-miniproject/wikipedia-en-10gb-v1/5453ac72a5fd300ce4f4a8eddf8152cae3be6d245ce188fe741127006b600bfc/s3-v1/"
+  },
+  "polars": {
+    "workspace_id": null,
+    "bucket": null
+  },
+  "baseline_commit": "5346bc41d5b099c40725669e9182548702a78562",
+  "python_major_minor": "3.13",
+  "unicode_version": "15.1.0"
+}

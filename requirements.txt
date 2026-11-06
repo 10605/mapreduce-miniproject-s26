@@ -1,0 +1,4 @@
+# Optional backend and TA preparation; EC2 algorithm/runtime uses stdlib only.
+pyarrow==21.0.0
+polars==1.44.1
+polars-cloud==0.11.0
