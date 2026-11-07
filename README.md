@@ -13,7 +13,7 @@ You may also add helper `.py` files inside `src/`.
 | `src/wc_hz.py` | WordCount implementation |
 | `src/polars_query.py` | optional Polars Cloud query |
 
-Keep the `WordCount` class, `do_map_and_shuffle(src)` and `do_gather_reduce(src, dst)` entry points, tokenization rules and output format (one Python `(word, integer_count)` tuple per key). Do not change the input, use reference counts in your algorithm, or skip timed work.
+Keep the `WordCount` class, `do_map_and_shuffle(src)` and `do_gather_reduce(src, dst)` entry points, tokenization rules and output format (one Python `(word, integer_count)` tuple per key). Do not change the input, use reference counts in your algorithm, or skip timed work.  For the optimized runs you submit, do not change the default AWS instances that run the code.
 
 The other folders are provided: `baseline/` holds the original implementation; `infrastructure/` handles AWS and reports; `data/` handles datasets; `cloud/` handles Polars Cloud; `tests/` checks correctness. Leave these and `course.json` unchanged.
 
@@ -59,7 +59,7 @@ python project.py run --backend student --workers 4 --repetitions 1
 
 Select another machine with `--instance-type t2.micro`. Select local input with `--input data/prepared` (or a UTF-8 text file), or another published S3 dataset with `--input s3://YOUR-BUCKET/wordcount-v1/`. Use the same dataset, machine type and worker counts for comparisons.
 
-Reports record exact correctness, job time, input-staging time, throughput, CPU and memory. Job time covers map/shuffle/sort/reduce; setup and validation are separate. Explain the changes using these measurements. The TA will rebenchmark the top three submissions.
+Reports record exact correctness, job time, input-staging time, throughput, CPU and memory. Job time covers map/shuffle/sort/reduce; setup and validation are separate. Explain the changes using these measurements. The TA will rebenchmark the top three submissions (or others if it seems necessary to check the results).
 
 ## Optional: Polars Cloud
 
