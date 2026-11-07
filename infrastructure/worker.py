@@ -1,4 +1,4 @@
-"""Run UNCHANGED upstream SeqWorker methods with deployment/measurement adapters."""
+"""Run UNCHANGED upstream Worker methods with deployment/measurement adapters."""
 import argparse
 import os
 from pathlib import Path
@@ -10,6 +10,7 @@ import socket
 import subprocess
 import sys
 import threading
+import tempfile
 import time
 import traceback
 import unicodedata
@@ -102,10 +103,22 @@ def measured_phase(cluster, index, phase, workdir, timeout, interval=1.0, copy_h
     workdir = Path(workdir).resolve()
     workdir.mkdir(parents=True, exist_ok=True)
     previous = Path.cwd()
+    spill = workdir / '.spill'
+    spill.mkdir(exist_ok=True)
+    filesystem = (subprocess.check_output(
+        ['findmnt', '-n', '-o', 'FSTYPE', '-T', str(spill)], text=True).strip()
+        if sys.platform.startswith('linux') else None)
+    if filesystem in ('tmpfs', 'ramfs'):
+        raise RuntimeError('Sorting temporary directory must be on disk: ' + str(spill))
+    previous_tmpdir, previous_tempfile = os.environ.get('TMPDIR'), tempfile.tempdir
+    os.environ['TMPDIR'] = str(spill)
+    # tempfile caches gettempdir(); set the actual cache as well as the env var.
+    tempfile.tempdir = str(spill)
     stop = threading.Event()
     records = []
     child_calls = []
-    status = {'status': 'running', 'phase': phase, 'index': index, 'started_utc': utc()}
+    status = {'status': 'running', 'phase': phase, 'index': index, 'started_utc': utc(),
+              'temporary_directory': str(spill), 'temporary_filesystem': filesystem}
     before, before_usage = system_snapshot(), usage()
     records.append(before)
     start = time.monotonic()
@@ -170,6 +183,11 @@ def measured_phase(cluster, index, phase, workdir, timeout, interval=1.0, copy_h
         signal.signal(signal.SIGALRM, old_handler)
         hz_worker.check_call = old_check_call
         os.chdir(previous)
+        tempfile.tempdir = previous_tempfile
+        if previous_tmpdir is None:
+            os.environ.pop('TMPDIR', None)
+        else:
+            os.environ['TMPDIR'] = previous_tmpdir
         stop.set()
         thread.join()
         end = system_snapshot()
@@ -214,6 +232,7 @@ def main():
         stat = os.statvfs(ROOT)
         value = {'hostname': socket.gethostname(), 'platform': platform.platform(),
                  'python': sys.version, 'unicode_version': unicodedata.unidata_version, 'logical_cpus': os.cpu_count(),
+                 'sorting_engine': 'python merge_sort',
                  'sort_version': subprocess.check_output(['sort', '--version'], text=True).splitlines()[0],
                  'free_disk_bytes': stat.f_bavail * stat.f_frsize,
                  'system': system_snapshot(), 'baseline_sha256': {p.name: sha256(p) for p in (ROOT / 'baseline').glob('*.py')}}

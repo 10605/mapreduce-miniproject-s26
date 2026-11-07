@@ -4,6 +4,7 @@ from pathlib import Path
 import shlex
 import shutil
 import sys
+import tempfile
 
 p = argparse.ArgumentParser()
 p.add_argument('--runtime', required=True)
@@ -27,5 +28,15 @@ def copy(command):
     shutil.copyfile(source, destination)
 
 
+# Prime tempfile's cache to ensure the production adapter overrides it.
+old_tempdir = tempfile.gettempdir()
+import merge_sort as ms
+original_init = ms._SpillFileIndex.__init__
+def checked_init(self):
+    original_init(self)
+    assert Path(self.dir).parent == Path(a.workdir).resolve() / '.spill', self.dir
+ms._SpillFileIndex.__init__ = checked_init
 result = measured_phase(c, a.index, a.phase, a.workdir, 60, interval=0.05, copy_hook=copy)
+assert tempfile.gettempdir() == old_tempdir
+assert result['temporary_directory'] == str(Path(a.workdir).resolve() / '.spill')
 raise SystemExit(0 if result['status'] == 'success' else 1)

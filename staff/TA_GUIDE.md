@@ -12,7 +12,7 @@ Alternative: [`HuggingFaceFW/fineweb`](https://huggingface.co/datasets/HuggingFa
 
 ## Prepare once, publish once
 
-Use an isolated **Python 3.13** environment with `pyarrow==21.0.0` for TA preparation. Oracle creation checks Unicode 15.1.0; EC2 installs/runs `python3.13` rather than AL2023 system Python 3.9, so Unicode word definitions agree. Professor algorithm files are unchanged. See [AL2023 Python versions](https://docs.aws.amazon.com/linux/al2023/ug/python.html). Do not install dependencies into an environment running another benchmark.
+Use an isolated **Python 3.13** environment with `pyarrow==21.0.0` for TA preparation. Oracle creation checks Unicode 15.1.0; EC2 installs/runs `python3.13` rather than AL2023 system Python 3.9, so Unicode word definitions agree. Algorithm files are copied unchanged from professor revision e6735dda97c848edc219020480669a2aa49dc333. Python 3.13 satisfies its Python 3.12+ requirement; EC2 also installs the pinned tqdm dependency. See [AL2023 Python versions](https://docs.aws.amazon.com/linux/al2023/ug/python.html). Do not install dependencies into an environment running another benchmark.
 
 ```bash
 python3.13 -m venv .venv
@@ -66,7 +66,7 @@ Baseline/student direct-EC2 timing boundaries are identical: map/sort + gather/s
 
 Reports keep code/data/hardware identity per row and preserve all successful runs. Only matching dataset/output hashes, instance model/count, requested disk size, credit mode and region get a baseline ratio. No old 540 MB/c6i result is imported. Missing 10 GB measurements remain absent.
 
-Before release: run `python3 project.py check` for both backends, the tests, then a real 4-node baseline sanity and full 4/8/16 baseline on the prepared data. Verify cleanup and quota release. Rebenchmark top three student code submissions in a fresh TA checkout using the held canonical infrastructure/config/data, plus changed-input correctness cases; do not trust a student-modified report or oracle. Students submit `src/` and a short explanation interpreting the auto-generated report.
+Before release: run `python3 project.py check` for both backends, the tests, and a real AWS baseline sanity on the prepared data. Collect fresh 4/8/16 measurements before publishing a scaling study. Verify cleanup and quota release. Rebenchmark top three student code submissions in a fresh TA checkout using the held canonical infrastructure/config/data, plus changed-input correctness cases; do not trust a student-modified report or oracle. Students submit `src/` and a short explanation interpreting the auto-generated report.
 
 Package a clean starter ZIP using `python3 staff/make_release.py`. It excludes environments, prepared data, credentials, results, logs and caches. The archive includes a provided-file checksum manifest for routine accidental-change detection; this is not a security signature. Distribution is ready only after the actual data S3 URI and baseline measurements have been supplied.
 
@@ -74,10 +74,35 @@ Package a clean starter ZIP using `python3 staff/make_release.py`. It excludes e
 
 Example: `python3 project.py run --backend baseline --input s3://BUCKET/PREFIX/ --workers 16 --instance-type t8i.small --repetitions 1`. A manifest prefix is required for parallel staging; arbitrary raw S3 objects should first be prepared/published. No instance profile or IAM changes are required: the local authorized AWS CLI produces temporary read-only object URLs, and only private temporary download plans reach workers. URLs are not printed, recorded in reports, or packaged with results; staging plans are deleted after use. The bucket stays non-public. Each object and combined node input is SHA-256 checked before the timed job.
 
-Input-staging wall time covers parallel download and checksum verification, separate from map/sort/shuffle/reduce job time. Pipeline wall time also includes output collection. Preserve those fields when discussing the benefit of S3; no local-vs-S3 speedup is claimed without running both. The original `baseline/` algorithm remains byte-identical; the input partitioning adapter now uses deterministic whole-line contiguous ranges, identically in local/S3 modes. Input-upload and TA oracle preparation times are separate.
+Input-staging wall time covers parallel download and checksum verification, separate from map/sort/shuffle/reduce job time. Pipeline wall time also includes output collection. Preserve those fields when discussing the benefit of S3; no local-vs-S3 speedup is claimed without running both. The `baseline/` algorithm remains byte-identical to its pinned professor revision; the input partitioning adapter now uses deterministic whole-line contiguous ranges, identically in local/S3 modes. Input-upload and TA oracle preparation times are separate.
 
 ## Verified single trial: 2026-11-05
 
 The requested 16-node t8i.small S3-input trial ran exactly one MapReduce repetition. It processed 10,000,003,056 bytes / 1,611,413,213 tokens / 6,816,165 keys. Input staging including checksums: 14.720971 s; map/sort: 282.434612 s; gather/reduce: 395.622821 s; job: 678.057495 s; exact validation: PASS. See `reports/requested-16-t8i-small-20261105/` in the TA checkout for raw metrics and cleanup evidence. The later Polars trial above uses exactly the same input/output hashes; its S3 read/write query boundary differs from the MapReduce job boundary. No T2 performance result is implied.
 
 Two deployment attempts were terminated before computation (EC2 ID propagation and a migrated probe path). Both issues now have regression coverage; all 48 provisioned instances across the attempts and successful trial were confirmed terminated. The SSH background launcher and timestamped-cluster resume behavior also have regression tests.
+
+## Python merge-sort baseline update (2026-11-07)
+
+The starter now pins professor commit `e6735dda97c848edc219020480669a2aa49dc333`. Both baseline and initial src include `merge_sort.py`; the optimized worker is now named `Worker` (previously `SeqWorker`). Keep Python 3.13 / Unicode 15.1 so the existing oracle remains valid. `tqdm==4.67.1` is installed locally and on EC2.
+
+The trusted worker adapter sets both TMPDIR and Python's cached tempfile directory to `<job>/.spill` before each phase, restores them afterward, rejects tmpfs/ramfs, and records the path and filesystem. On EC2 the job directory is on the EBS volume. Sorting now runs inside the Python worker; its CPU and RSS include sorting. Child-process RSS mainly describes SCP, so do not compare that field alone to old GNU-sort peaks.
+
+The earlier 2026-11-05 measurements above belong to old commit `5346bc41d5b099c40725669e9182548702a78562` with GNU sort. Retain those raw results and labels; they are not timings of this new baseline. The 10 GB data, tokenization and reference counts are unchanged. New validation results are recorded separately after the full AWS run.
+
+### Verified full-data trial: 2026-11-07
+
+The Python merge-sort baseline passed all 22 tests and both four-worker local checks, followed by one exact-correct full 10 GB trial on 16 × t8i.micro. Dataset/output hashes match the old GNU-sort trial. All 16 workers ran the pinned upstream files; all 32 phase records report EBS-backed xfs spill directories.
+
+| Metric | New Python baseline |
+|---|---:|
+| Input staging (separate) | 16.995 s |
+| Map/sort | 432.979 s |
+| Gather/reduce | 450.102 s |
+| Job total | 883.082 s |
+| Task CPU total | 10480.132 CPU-s |
+| Worker peak RSS | 31.06 MiB |
+| Largest child peak RSS | 21.60 MiB |
+| Lowest sampled whole-node available memory | 462.74 MiB |
+
+This single trial took about 26.17% longer than the old 699.938 s GNU-sort run, with lower observed memory pressure. No repeated-run or 4/8-node scaling claim is made. Both versions' raw results remain in the TA checkout; new experiment: `wc-20261107T211755Z`. Output SHA-256: `8671d9dbf177294378ab70d33ca216b050e437d742ef8a519123faf988163662`. All 16 new instances were individually confirmed terminated.

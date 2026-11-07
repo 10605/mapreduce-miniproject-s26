@@ -6,7 +6,7 @@ from pathlib import Path
 import subprocess
 import time
 
-BASELINE_COMMIT = '5346bc41d5b099c40725669e9182548702a78562'
+BASELINE_COMMIT = 'e6735dda97c848edc219020480669a2aa49dc333'
 REMOTE_ROOT = '/home/ec2-user/wcproject'
 
 

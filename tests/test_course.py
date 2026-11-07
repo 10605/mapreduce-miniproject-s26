@@ -78,7 +78,7 @@ class CourseTests(unittest.TestCase):
 
     def test_frozen_baseline_is_original(self):
         frozen_baseline()
-        for name in ['wc_hz.py', 'hz_worker.py', 'reduce_util.py']:
+        for name in ['wc_hz.py', 'hz_worker.py', 'reduce_util.py', 'merge_sort.py']:
             self.assertTrue((ROOT / 'baseline' / name).is_file())
 
     def test_confirmed_common_instance(self):

@@ -23,11 +23,12 @@ from common import BASELINE_COMMIT, REMOTE_ROOT, read_json, write_json, sha256, 
 
 HERE = Path(__file__).resolve().parent
 PROJECT = HERE.parent
-BASELINE_FILES = ['hz_worker.py', 'reduce_util.py', 'wc_hz.py']
+BASELINE_FILES = ['hz_worker.py', 'reduce_util.py', 'wc_hz.py', 'merge_sort.py']
 SSM_AMI = '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64'
 BOOTSTRAP = '''#!/bin/bash
 set -euxo pipefail
-dnf install -y python3.13 openssh-clients tar gzip
+dnf install -y python3.13 python3.13-pip openssh-clients tar gzip
+python3.13 -m pip install --no-cache-dir tqdm==4.67.1
 touch /var/lib/hazbench-ready
 '''
 
