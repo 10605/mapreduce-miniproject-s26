@@ -74,3 +74,7 @@ python project.py run --backend polars --workers 4 --repetitions 1
 Cloud must use the same selected machine type and count. Its query time includes S3 input/output; CPU and memory metrics may be unavailable. Consult the TA for supported configurations.
 
 For interrupted-run recovery, explicit cleanup and TA setup, see [the TA guide](staff/TA_GUIDE.md).
+
+## Contact TA (Spring 26 only)
+
+If you have questions or run into issues, email the TA at [yutengz@andrew.cmu.edu](mailto:yutengz@andrew.cmu.edu). The TA will do their best to reply within 1–2 hours to help keep your project running smoothly.
