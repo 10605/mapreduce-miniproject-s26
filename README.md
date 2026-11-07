@@ -16,24 +16,23 @@ You may also add helper `.py` files inside `src/`.
 
 Keep the `WordCount` class, `do_map_and_shuffle(src)` and `do_gather_reduce(src, dst)` entry points, tokenization rules and output format (one Python `(word, integer_count)` tuple per key). Do not change the input, use reference counts in your algorithm, or skip timed work.  For the optimized runs you submit, do not change the default AWS instances that run the code.
 
-The other folders are provided: `baseline/` holds the original implementation; `infrastructure/` handles AWS and reports; `data/` handles datasets; `cloud/` handles Polars Cloud; `tests/` checks correctness. Leave these and `course.json` unchanged.
+The other folders are provided: `baseline/` holds the original implementation; `infrastructure/` handles AWS and reports; `data/` handles datasets; `cloud/` handles Polars Cloud; `tests/` checks correctness. Leave these and `course.json` unchanged, except for the dataset location when using your own S3 bucket.
 
 ## Dataset
 
 We use about **10 GB of English Wikipedia text** from [wikimedia/wikipedia (`20231101.en`)](https://huggingface.co/datasets/wikimedia/wikipedia): 3.43 million complete articles, without repeating articles. The TA provides the fixed dataset and reference counts through the S3 location in `course.json`. Preserve the supplied attribution and license records.
 
-**S3 is the default:** each machine downloads its own shards directly, so you do not need to download the dataset to your laptop. To get a verified local copy instead:
+**Recommended: use the public [course S3 bucket](https://10605-f26-testing.s3.us-east-1.amazonaws.com/).** The dataset prefix is already configured in `course.json`. Each machine downloads its assigned shards directly from S3 when you run an experiment; no local download or re-upload is needed. Use your own AWS credentials for the supplied CLI and EC2 runs.
+
+**Optional: use your own S3 bucket.** After setup below, create a bucket in `us-east-1` and use credentials with write access to it, then run:
 
 ```bash
-python project.py fetch
-```
-
-To upload that copy to your own existing private bucket:
-
-```bash
+python project.py fetch                     # download and verify the course data
 python project.py publish --input data/prepared \
   --s3-uri s3://YOUR-BUCKET/wordcount-v1/ --set-default
 ```
+
+`--set-default` makes later runs use your bucket. Keep the dataset unchanged. If you only want a local copy, run just `fetch`.
 
 ## Setup and run
 
