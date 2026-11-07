@@ -1,4 +1,4 @@
-"""Native Polars WordCount matching the SeqWorker's word definition."""
+"""Native Polars WordCount matching the Worker's word definition."""
 import polars as pl
 
 

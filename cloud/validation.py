@@ -29,5 +29,5 @@ def canonicalize(frame, destination, expected_sha):
     result = {'correct': checksum == expected_sha, 'canonical_sha256': checksum,
               'expected_sha256': expected_sha, 'tokens': frame['count'].sum(), 'vocabulary': frame.height}
     if not result['correct']:
-        raise ValueError('WordCount does not match the exact SeqWorker oracle: ' + json.dumps(result))
+        raise ValueError('WordCount does not match the exact Worker oracle: ' + json.dumps(result))
     return result

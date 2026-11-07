@@ -10,6 +10,7 @@ You may also add helper `.py` files inside `src/`.
 |---|---|
 | `src/hz_worker.py` | map/shuffle/sort/reduce workflow and concurrency |
 | `src/reduce_util.py` | partitioning, grouping and intermediate data |
+| `src/merge_sort.py` | external merge sort used by the worker |
 | `src/wc_hz.py` | WordCount implementation |
 | `src/polars_query.py` | optional Polars Cloud query |
 

@@ -341,7 +341,7 @@ class Cluster:
             known.append(node['private_ip'] + ' ' + ' '.join(key[:2]))
         (package / 'peer_known_hosts').write_text('\n'.join(known) + '\n')
         # Personal SSH private key stays on the laptop. Only an ephemeral cluster peer
-        # key is distributed for the inherited SeqWorker's SCP operations.
+        # key is distributed for the inherited Worker's SCP operations.
         peer = self.directory / 'peer_key'
         if not peer.exists():
             run(['ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', peer])

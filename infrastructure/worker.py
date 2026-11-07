@@ -1,4 +1,4 @@
-"""Run UNCHANGED upstream SeqWorker methods with deployment/measurement adapters."""
+"""Run UNCHANGED upstream Worker methods with deployment/measurement adapters."""
 import argparse
 import os
 from pathlib import Path
