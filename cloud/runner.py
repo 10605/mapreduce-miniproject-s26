@@ -323,6 +323,7 @@ def main():
     parser.add_argument('--workspace', help='Polars Cloud workspace ID; overrides course configuration')
     parser.add_argument('--bucket', help='S3 output bucket; overrides course configuration')
     parser.add_argument('--input')
+    parser.add_argument('--manifest', help='local publication record for a restricted custom S3 prefix')
     parser.add_argument('--instance-type')
     parser.add_argument('--repetitions', type=int)
     parser.add_argument('--experiment', default='course-polars-' + time.strftime('%Y%m%dT%H%M%SZ', time.gmtime()))
@@ -339,11 +340,15 @@ def main():
     args.repetitions = c['repetitions']
     if not args.workspace or not args.bucket:
         parser.error('TA must configure polars.workspace_id and polars.bucket in course.json')
+    from urllib.parse import urlparse
+    course_bucket = urlparse(read_json(BASE / 'data/course-publication.json')['uri']).netloc
+    if args.bucket == course_bucket:
+        parser.error('Use your own output bucket: the course bucket blocks local result downloads')
     lock = (ROOT / '.experiment.lock').open('w')
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     if args.input and args.input.startswith('s3://'):
         from data.s3_dataset import inspect as inspect_s3
-        uri, publication = inspect_s3(args.input, c['region'], args.profile)
+        uri, publication = inspect_s3(args.input, c['region'], args.profile, args.manifest)
         manifest = publication['dataset']
         prepared = None
     elif args.input:

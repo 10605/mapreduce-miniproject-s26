@@ -36,12 +36,29 @@ def dataset(c):
     return directory, m
 
 
-def fetch(c):
-    uri = c['dataset'].get('s3_uri')
+def fetch(c, source='huggingface', s3_uri=None, profile=None):
+    directory = ROOT / c['dataset']['directory']
+    if source == 'huggingface':
+        if not (directory / 'manifest.json').exists():
+            print('Fetching original Hugging Face Wikipedia sources and rebuilding the fixed course dataset. '
+                  'This includes extraction and reference-count generation; no course S3 download.', flush=True)
+            command = [sys.executable, str(ROOT / 'data/prepare.py'), '--output', str(directory),
+                       '--target-bytes', str(c['dataset']['target_bytes'])]
+            if directory.exists():
+                command.append('--resume')
+            subprocess.run(command, check=True)
+        _, m = dataset(c)
+        reference = read_json(ROOT / 'data/course-publication.json')['manifest']['dataset']
+        for field in ['input_sha256', 'expected_sha256', 'attribution_sha256']:
+            if m[field] != reference[field]:
+                raise ValueError('Rebuilt data differs from the fixed course dataset: ' + field)
+        print('Verified course dataset: %.6f GB, SHA %s' % (m['input_bytes'] / 1e9, m['input_sha256']))
+        return
+    uri = s3_uri or c['dataset'].get('s3_uri')
     if not uri or not uri.startswith('s3://'):
         raise ValueError('TA must publish the prepared dataset and set dataset.s3_uri in course.json')
-    directory = ROOT / c['dataset']['directory']
-    subprocess.run(['aws', '--region', c['region'], 's3', 'sync', uri, str(directory), '--only-show-errors'], check=True)
+    from data.s3_dataset import command
+    subprocess.run(command(c['region'], profile) + ['s3', 'sync', uri, str(directory), '--only-show-errors'], check=True)
     if not (directory / 'input.txt').exists() and (directory / 's3-manifest.json').exists():
         from data.s3_dataset import validate_manifest
         m = validate_manifest(read_json(directory / 's3-manifest.json'))
@@ -67,7 +84,7 @@ def run(args, c):
     s3 = source.startswith('s3://')
     if s3:
         from data.s3_dataset import inspect
-        source, published = inspect(source, c['region'], args.profile)
+        source, published = inspect(source, c['region'], args.profile, args.manifest)
         m = published['dataset']
         directory = None
     else:
@@ -85,6 +102,8 @@ def run(args, c):
         if args.profile:
             command += ['--profile', args.profile]
         command += ['--instance-type', c['instance_type'], '--repetitions', str(c['repetitions']), '--input', source]
+        if args.manifest:
+            command += ['--manifest', args.manifest]
         subprocess.run(command, check=True)
         return
     key = args.ssh_key or os.environ.get('WC_SSH_KEY')
@@ -101,6 +120,8 @@ def run(args, c):
                '--name-prefix', prefix, '--ssh-key', str(Path(key).expanduser())]
     if not s3:
         command += ['--oracle', str(directory / 'expected.sqlite')]
+    elif args.manifest:
+        command += ['--manifest', args.manifest]
     for name in ['profile', 'subnet_id', 'ssh_cidr', 'ami']:
         value = getattr(args, name, None)
         if value:
@@ -115,7 +136,10 @@ def run(args, c):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     sub = p.add_subparsers(dest='command', required=True)
-    sub.add_parser('fetch', help='download TA-published input and oracle; no compute')
+    download = sub.add_parser('fetch', help='rebuild fixed data from original Hugging Face sources; no compute')
+    download.add_argument('--source', choices=['huggingface', 's3'], default='huggingface')
+    download.add_argument('--s3-uri', help='optional S3 mirror; course bucket requires a us-east-1 VPC endpoint')
+    download.add_argument('--profile')
     check = sub.add_parser('check', help='offline, real 4-worker algorithm smoke test')
     check.add_argument('--backend', choices=['baseline', 'student'], default='student')
     sub.add_parser('report', help='generate report from verified local results')
@@ -130,6 +154,7 @@ def main():
     r = sub.add_parser('run', help='create paid compute, run 3 repetitions, fetch, verify, clean up')
     r.add_argument('--backend', choices=['baseline', 'student', 'polars'], default='student')
     r.add_argument('--input', help='local UTF-8 file/prepared directory, or s3://bucket/dataset-prefix/')
+    r.add_argument('--manifest', help='local publication record for a restricted custom S3 prefix')
     r.add_argument('--instance-type', help='AWS model, e.g. t8i.small or t2.micro; same model used by either backend')
     r.add_argument('--repetitions', type=int, help='defaults to course configuration; use 1 for a single trial')
     r.add_argument('--workers', type=int, choices=[4, 8, 16], nargs='+', default=[4, 8, 16])
@@ -144,7 +169,7 @@ def main():
     c = course()
     frozen_baseline()
     if args.command == 'fetch':
-        fetch(c)
+        fetch(c, args.source, args.s3_uri, args.profile)
     elif args.command == 'check':
         subprocess.run([sys.executable, str(ROOT / 'tests/run_local.py'), '--backend', args.backend], check=True)
     elif args.command == 'report':

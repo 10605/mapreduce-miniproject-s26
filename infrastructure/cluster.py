@@ -171,6 +171,9 @@ class Cluster:
         name = 'hazbench-' + self.state['id'][:16]
         self.state.update(phase='provisioning', key_name=name, group_name=name, client_token=self.state['id'])
         self.save()
+        if config.get('input_mode') == 's3-direct':
+            from s3_gateway import ensure
+            ensure(self)
         key = self.login_key()
         public = self.directory / 'login_key.pub'
         if config.get('ssh_key_path'):
@@ -411,7 +414,8 @@ print('mesh-ok')
         if is_s3:
             sys.path.insert(0, str(PROJECT))
             from data.s3_dataset import signed_plan, inspect
-            uri, manifest = inspect(self.args.input, self.state['config']['region'], self.state['config'].get('profile'))
+            uri, manifest = inspect(self.args.input, self.state['config']['region'], self.state['config'].get('profile'),
+                                    getattr(self.args, 'manifest', None))
             digest = manifest['dataset']['input_sha256']
             plan = signed_plan(uri, manifest, len(nodes), self.state['config']['region'], self.state['config'].get('profile'))
             private_plan = self.directory / 's3-plan.private.json'
@@ -549,6 +553,8 @@ print('mesh-ok')
                 self.aws('ec2', 'delete-security-group', group_id=group['GroupId'])
         if self.state.get('key_name'):
             self.aws('ec2', 'delete-key-pair', key_name=self.state['key_name'])
+        from s3_gateway import cleanup
+        cleanup(self)
         self.state.update(phase='terminated', terminated_utc=utc())
         self.save()
         print('Confirmed terminated. Root EBS uses DeleteOnTermination; fetched local results are retained.')
@@ -575,6 +581,7 @@ def main():
         sub.add_parser(name)
     start = sub.add_parser('start')
     start.add_argument('--input', required=True, help='local UTF-8 plain text corpus')
+    start.add_argument('--manifest', help='local publication record for a restricted S3 prefix')
     start.add_argument('--experiment')
     start.add_argument('--repeat', type=int, default=1, help='synthetic corpus replication factor')
     start.add_argument('--repetitions', type=int, default=3)

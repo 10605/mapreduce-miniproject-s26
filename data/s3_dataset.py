@@ -7,7 +7,7 @@ import re
 import subprocess
 import sys
 import time
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'infrastructure'))
@@ -41,10 +41,30 @@ def validate_manifest(m):
     return m
 
 
-def inspect(uri, region, profile=None):
+def pinned_publication(uri, manifest_path=None):
+    """Use release metadata without reading the restricted course bucket locally."""
+    uri = uri.removesuffix('s3-manifest.json').rstrip('/') + '/'
+    path = Path(manifest_path) if manifest_path else ROOT / 'data/course-publication.json'
+    if path.exists():
+        record = read_json(path)
+        if record['uri'].rstrip('/') + '/' == uri:
+            return record
+        if manifest_path:
+            raise ValueError('Local manifest belongs to another S3 prefix')
+    elif manifest_path:
+        raise ValueError('Local publication record does not exist')
+    return None
+
+
+def inspect(uri, region, profile=None, manifest_path=None):
     if not uri.startswith('s3://'):
         raise ValueError('Expected s3://bucket/prefix/ or s3://bucket/prefix/s3-manifest.json')
     manifest_uri = uri if uri.endswith('/s3-manifest.json') else uri.rstrip('/') + '/s3-manifest.json'
+    pinned = pinned_publication(uri, manifest_path)
+    if pinned:
+        if pinned.get('required_region', region) != region:
+            raise ValueError('Course S3 input requires region ' + pinned['required_region'])
+        return pinned['uri'], validate_manifest(pinned['manifest'])
     result = subprocess.run(command(region, profile) + ['s3', 'cp', manifest_uri, '-', '--only-show-errors'],
                             check=True, text=True, capture_output=True)
     m = validate_manifest(json.loads(result.stdout))
@@ -53,7 +73,12 @@ def inspect(uri, region, profile=None):
 
 def signed_plan(uri, m, workers, region, profile=None):
     validate_manifest(m)
+    pinned = pinned_publication(uri)
     def sign(item):
+        if pinned:
+            parsed = urlparse(uri)
+            return dict(item, url='https://' + parsed.netloc + '.s3.' + region + '.amazonaws.com/'
+                        + quote(parsed.path.lstrip('/') + item['key'], safe='/'))
         url = subprocess.check_output(command(region, profile) + ['s3', 'presign', uri + item['key'],
                                       '--expires-in', '43200'], text=True).strip()
         return dict(item, url=url)

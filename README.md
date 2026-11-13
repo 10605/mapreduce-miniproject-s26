@@ -22,17 +22,19 @@ The other folders are provided: `baseline/` holds the original implementation; `
 
 We use about **10 GB of English Wikipedia text** from [wikimedia/wikipedia (`20231101.en`)](https://huggingface.co/datasets/wikimedia/wikipedia): 3.43 million complete articles, without repeating articles. The TA provides the fixed dataset and reference counts through the S3 location in `course.json`. Preserve the supplied attribution and license records.
 
-**Recommended: use the public [course S3 bucket](https://10605-f26-testing.s3.us-east-1.amazonaws.com/).** The dataset prefix is already configured in `course.json`. Each machine downloads its assigned shards directly from S3 when you run an experiment; no local download or re-upload is needed. Use your own AWS credentials for the supplied CLI and EC2 runs.
+**Recommended for AWS runs: use the course S3 dataset already configured in `course.json`.** Each machine downloads only its assigned shards. Deployment automatically creates or reuses a free S3 Gateway Endpoint in `us-east-1`; the course bucket rejects direct downloads to laptops or outside that regional VPC path. No local download or re-upload is needed. Use your own AWS credentials; they need permission to describe/create/delete VPC endpoints and tag created resources, in addition to the EC2 permissions.
+
+**Optional local copy:** `python project.py fetch` downloads the original, pinned Hugging Face Wikipedia files, extracts the same fixed 10 GB and builds the reference counts. It does **not** download from the TA's S3 bucket or start EC2. First-time preparation can take a while and needs extra disk space for source files, text, reference counts and temporary files; hashes verify the course input and expected output.
 
 **Optional: use your own S3 bucket.** After setup below, create a bucket in `us-east-1` and use credentials with write access to it, then run:
 
 ```bash
-python project.py fetch                     # download and verify the course data
+python project.py fetch                     # rebuild and verify from original Hugging Face data
 python project.py publish --input data/prepared \
   --s3-uri s3://YOUR-BUCKET/wordcount-v1/ --set-default
 ```
 
-`--set-default` makes later runs use your bucket. Keep the dataset unchanged. If you only want a local copy, run just `fetch`.
+`--set-default` makes later runs use your bucket. Keep the dataset unchanged. An accessible S3 mirror can also be downloaded with `python project.py fetch --source s3 --s3-uri s3://YOUR-BUCKET/wordcount-v1/`.
 
 ## Setup and run
 
@@ -71,7 +73,7 @@ python -c 'import polars_cloud as pc; pc.authenticate()'
 python project.py run --backend polars --workers 4 --repetitions 1
 ```
 
-Cloud must use the same selected machine type and count. Its query time includes S3 input/output; CPU and memory metrics may be unavailable. Consult the TA for supported configurations.
+Cloud must use the same selected machine type and count. Its workspace VPC needs an S3 Gateway Endpoint in `us-east-1`; use your own output bucket. Query time includes S3 input/output; CPU and memory metrics may be unavailable. Consult the TA for supported configurations.
 
 For interrupted-run recovery, explicit cleanup and TA setup, see [the TA guide](staff/TA_GUIDE.md).
 

@@ -142,6 +142,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--workers', type=int, choices=[4, 8, 16], nargs='+', default=[4])
     parser.add_argument('--input', default=str(HERE.parent / 'data/prepared/input.txt'))
+    parser.add_argument('--manifest', help='local publication record for a restricted S3 prefix')
     parser.add_argument('--repeat', type=int, default=1)
     parser.add_argument('--repetitions', type=int, default=3)
     parser.add_argument('--ssh-key', required=True)
@@ -178,7 +179,7 @@ def main():
     if s3:
         sys.path.insert(0, str(HERE.parent))
         from data.s3_dataset import inspect
-        args.input, args.s3_manifest = inspect(args.input, args.region, args.profile)
+        args.input, args.s3_manifest = inspect(args.input, args.region, args.profile, args.manifest)
         source_hash = args.s3_manifest['dataset']['input_sha256']
     else:
         if not args.oracle or not Path(args.oracle).is_file():

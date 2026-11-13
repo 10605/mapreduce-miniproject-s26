@@ -19,7 +19,7 @@ def files():
                    if p.is_file() and p.suffix in {'.py', '.json', '.md', '.txt'}
                    and p.name not in {'aws-preflight.json', 'test-results.txt', 'test-results-s3.txt', 'verification.json', 'requested-trial-status.json'}
                    and not p.name.startswith('requested-')
-                   and (folder != 'staff' or p.name in {'TA_GUIDE.md', 'make_release.py'})]
+                   and (folder != 'staff' or p.name in {'TA_GUIDE.md', 'make_release.py', 's3_access.py'})]
     result += [ROOT / 'baseline/LICENSE']
     return sorted(set(result))
 
