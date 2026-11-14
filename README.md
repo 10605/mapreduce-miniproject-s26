@@ -20,13 +20,9 @@ The other folders are provided: `baseline/` holds the original implementation; `
 
 ## Dataset
 
-We use about **10 GB of English Wikipedia text** from [wikimedia/wikipedia (`20231101.en`)](https://huggingface.co/datasets/wikimedia/wikipedia): 3.43 million complete articles, without repeating articles. The TA provides the fixed dataset and reference counts through the S3 location in `course.json`. Preserve the supplied attribution and license records.
+We use about **10 GB of English Wikipedia text** from [wikimedia/wikipedia (`20231101.en`)](https://huggingface.co/datasets/wikimedia/wikipedia): 3.43 million complete articles, without repeating articles. The supplied scripts prepare the fixed dataset and reference counts. Preserve the supplied attribution and license records.
 
-**Recommended for AWS runs: use the course S3 dataset already configured in `course.json`.** Each machine downloads only its assigned shards. Deployment automatically creates or reuses a free S3 Gateway Endpoint in `us-east-1`; the course bucket rejects direct downloads to laptops or outside that regional VPC path. No local download or re-upload is needed. Use your own AWS credentials; they need permission to describe/create/delete VPC endpoints and tag created resources, in addition to the EC2 permissions.
-
-**Optional local copy:** `python project.py fetch` downloads the original, pinned Hugging Face Wikipedia files, extracts the same fixed 10 GB and builds the reference counts. It does **not** download from the TA's S3 bucket or start EC2. First-time preparation can take a while and needs extra disk space for source files, text, reference counts and temporary files; hashes verify the course input and expected output.
-
-**Optional: use your own S3 bucket.** After setup below, create a bucket in `us-east-1` and use credentials with write access to it, then run:
+**Recommended: download the data locally, then upload it to your own S3 bucket.** Complete the setup below, create a bucket in `us-east-1`, and use AWS credentials with write access to it. Then run:
 
 ```bash
 python project.py fetch                     # rebuild and verify from original Hugging Face data
@@ -34,7 +30,11 @@ python project.py publish --input data/prepared \
   --s3-uri s3://YOUR-BUCKET/wordcount-v1/ --set-default
 ```
 
-`--set-default` makes later runs use your bucket. Keep the dataset unchanged. An accessible S3 mirror can also be downloaded with `python project.py fetch --source s3 --s3-uri s3://YOUR-BUCKET/wordcount-v1/`.
+`fetch` downloads the original, pinned files from **Hugging Face** and prepares the fixed dataset and reference counts in `data/prepared/`. It does **not** download from the course S3 bucket or start EC2. First-time preparation can take a while and needs extra disk space for source files, text, reference counts and temporary files; hashes verify the course input and expected output.
+
+`publish` uploads the prepared data to your bucket. **`--set-default` updates `dataset.s3_uri` in `course.json`**, so later baseline and student runs use your bucket automatically. Each worker downloads only its assigned shards; you do not need to repeat preparation or upload for every experiment. Keep the dataset unchanged.
+
+The course bucket remains an optional shared source. It only permits reads through a VPC endpoint in `us-east-1`, so direct laptop downloads are rejected.
 
 ## Setup and run
 
@@ -46,7 +46,11 @@ source .venv/bin/activate
 pip install -r requirements.txt
 aws configure
 export WC_SSH_KEY=/path/to/your/key.pem
+```
 
+Run the dataset download and upload commands above before starting AWS experiments. Deployment automatically creates or reuses a free S3 Gateway Endpoint; your AWS credentials also need permission to describe/create/delete VPC endpoints and tag created resources.
+
+```bash
 python project.py check                    # local correctness check; no AWS cost
 python project.py run --backend baseline   # original code
 python project.py run --backend student    # your src/ code
